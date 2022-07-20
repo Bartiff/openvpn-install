@@ -624,6 +624,7 @@ function installOpenVPN() {
 		CLIENT=${CLIENT:-client}
 		PASS=${PASS:-1}
 		CONTINUE=${CONTINUE:-y}
+		PASSPHRASE=${PASSPHRASE:-1}
 
 		# Behind NAT, we'll default to the publicly reachable IPv4/IPv6.
 		if [[ $IPV6_SUPPORT == "y" ]]; then
@@ -1068,10 +1069,11 @@ function newClient() {
 	echo "Do you want to protect the configuration file with a password?"
 	echo "(e.g. encrypt the private key with a password)"
 	echo "   1) Add a passwordless client"
-	echo "   2) Use a password for the client"
+	echo "   2) Use a password for the client from stdin"
+	echo "   3) Use a password for the client with PASSPHRASE env var"
 
-	until [[ $PASS =~ ^[1-2]$ ]]; do
-		read -rp "Select an option [1-2]: " -e -i 1 PASS
+	until [[ $PASS =~ ^[1-3]$ ]]; do
+		read -rp "Select an option [1-3]: " -e -i 1 PASS
 	done
 
 	CLIENTEXISTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c -E "/CN=$CLIENT\$")
@@ -1088,6 +1090,14 @@ function newClient() {
 		2)
 			echo "⚠️ You will be asked for the client password below ⚠️"
 			./easyrsa build-client-full "$CLIENT"
+			;;
+		3)
+			if [[ -z "${PASSPHRASE}" ]]; then
+				echo "⚠️ The passphrase variable is undefined, please export PASSPHRASE env var before run the script. ⚠️"
+				exit
+			else
+				./easyrsa --passin=pass:"$PASSPHRASE" --passout=pass:"$PASSPHRASE" build-client-full "$CLIENT"
+			fi
 			;;
 		esac
 		echo "Client $CLIENT added."
